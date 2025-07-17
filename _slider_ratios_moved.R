@@ -1,58 +1,115 @@
-# Function to calculate rule-following ratios among moved sliders only
 slider_ratios_moved <- function(data) {
-  results <- data.frame(
-    participant_id = 1:nrow(data),
-    
-    # Measure 1: Active Rule-Following (exclude init at 50)
-    ratio_50_active_following = NA,
-    count_active_following = NA,
-    
-    # Measure 2: Effort-Required Rule-Following (exclude init at 40-60) 
-    ratio_50_effort_required = NA,
-    count_effort_required = NA,
-    
-    # Measure 3: Total Engagement Rule-Following (include all moved)
-    ratio_50_total_engagement = NA,
-    count_total_engagement = NA,
-  )
+  # Initialize new columns - comprehensive movement analysis
+  data$moved_ratio_50_all <- NA           
+  data$moved_ratio_4060_all <- NA         
+  data$moved_ratio_outside_all <- NA      
+  data$moved_count_all <- NA              
+  
+  data$moved_ratio_50_non50_start <- NA   
+  data$moved_ratio_4060_non50_start <- NA 
+  data$moved_ratio_outside_non50_start <- NA 
+  data$moved_count_non50_start <- NA      
+  
+  data$moved_ratio_50_outside <- NA       
+  data$moved_ratio_4060_outside <- NA     
+  data$moved_ratio_outside_outside <- NA  
+  data$moved_count_outside <- NA          
+  
+  data$moved_ratio_50_inside <- NA        
+  data$moved_ratio_4060_inside <- NA      
+  data$moved_ratio_outside_inside <- NA   
+  data$moved_count_inside <- NA           
   
   for(i in 1:nrow(data)) {
-    # Get initial and final values
     initial_vals <- as.numeric(data[i, paste0("els_slider.1.player.slider_initial_", 0:47)])
     final_vals <- as.numeric(data[i, paste0("els_slider.1.player.slider_final_", 0:47)])
-    
-    # Remove NAs
     valid_indices <- !is.na(initial_vals) & !is.na(final_vals)
     initial_vals <- initial_vals[valid_indices]
     final_vals <- final_vals[valid_indices]
     
     if(length(initial_vals) > 0) {
-      # Get moved sliders (for measures 1-3)
       moved_indices <- initial_vals != final_vals
       moved_initial <- initial_vals[moved_indices]
       moved_final <- final_vals[moved_indices]
       
-      # Measure 1: Active Rule-Following (moved, exclude those who started at 50)
       if(sum(moved_indices) > 0) {
-        active_indices <- moved_initial != 50
-        if(sum(active_indices) > 0) {
-          results$ratio_50_active_following[i] <- sum(moved_final[active_indices] == 50) / sum(active_indices)
-          results$count_active_following[i] <- sum(active_indices)
+        # All moved sliders
+        data$moved_ratio_50_all[i] <- sum(moved_final == 50) / length(moved_final)
+        data$moved_ratio_4060_all[i] <- sum(moved_final >= 40 & moved_final <= 60 & moved_final != 50) / length(moved_final)
+        data$moved_ratio_outside_all[i] <- sum(moved_final < 40 | moved_final > 60) / length(moved_final)
+        data$moved_count_all[i] <- length(moved_final)
+        
+        # Among moved sliders that didn't start at 50
+        non50_start_indices <- moved_initial != 50
+        if(sum(non50_start_indices) > 0) {
+          non50_final <- moved_final[non50_start_indices]
+          data$moved_ratio_50_non50_start[i] <- sum(non50_final == 50) / sum(non50_start_indices)
+          data$moved_ratio_4060_non50_start[i] <- sum(non50_final >= 40 & non50_final <= 60 & non50_final != 50) / sum(non50_start_indices)
+          data$moved_ratio_outside_non50_start[i] <- sum(non50_final < 40 | non50_final > 60) / sum(non50_start_indices)
+          data$moved_count_non50_start[i] <- sum(non50_start_indices)
+        } else {
+          # No non-50 starters that moved - set ratios to 0
+          data$moved_ratio_50_non50_start[i] <- 0
+          data$moved_ratio_4060_non50_start[i] <- 0
+          data$moved_ratio_outside_non50_start[i] <- 0
+          data$moved_count_non50_start[i] <- 0
         }
         
-        # Measure 2: Effort-Required Rule-Following (moved, exclude those who started in 40-60)
-        effort_indices <- moved_initial < 40 | moved_initial > 60
-        if(sum(effort_indices) > 0) {
-          results$ratio_50_effort_required[i] <- sum(moved_final[effort_indices] == 50) / sum(effort_indices)
-          results$count_effort_required[i] <- sum(effort_indices)
+        # Among moved sliders that started outside 40-60
+        outside_indices <- moved_initial < 40 | moved_initial > 60
+        if(sum(outside_indices) > 0) {
+          outside_final <- moved_final[outside_indices]
+          data$moved_ratio_50_outside[i] <- sum(outside_final == 50) / sum(outside_indices)
+          data$moved_ratio_4060_outside[i] <- sum(outside_final >= 40 & outside_final <= 60 & outside_final != 50) / sum(outside_indices)
+          data$moved_ratio_outside_outside[i] <- sum(outside_final < 40 | outside_final > 60) / sum(outside_indices)
+          data$moved_count_outside[i] <- sum(outside_indices)
+        } else {
+          # No outside starters that moved - set ratios to 0
+          data$moved_ratio_50_outside[i] <- 0
+          data$moved_ratio_4060_outside[i] <- 0
+          data$moved_ratio_outside_outside[i] <- 0
+          data$moved_count_outside[i] <- 0
         }
         
-        # Measure 3: Total Engagement Rule-Following (all moved sliders)
-        results$ratio_50_total_engagement[i] <- sum(moved_final == 50) / length(moved_final)
-        results$count_total_engagement[i] <- length(moved_final)
+        # Among moved sliders that started inside 40-60 (but not 50)
+        inside_indices <- moved_initial >= 40 & moved_initial <= 60 & moved_initial != 50
+        if(sum(inside_indices) > 0) {
+          inside_final <- moved_final[inside_indices]
+          data$moved_ratio_50_inside[i] <- sum(inside_final == 50) / sum(inside_indices)
+          data$moved_ratio_4060_inside[i] <- sum(inside_final >= 40 & inside_final <= 60 & inside_final != 50) / sum(inside_indices)
+          data$moved_ratio_outside_inside[i] <- sum(inside_final < 40 | inside_final > 60) / sum(inside_indices)
+          data$moved_count_inside[i] <- sum(inside_indices)
+        } else {
+          # No inside starters that moved - set ratios to 0
+          data$moved_ratio_50_inside[i] <- 0
+          data$moved_ratio_4060_inside[i] <- 0
+          data$moved_ratio_outside_inside[i] <- 0
+          data$moved_count_inside[i] <- 0
+        }
+      } else {
+        # No sliders moved at all - set all ratios and counts to 0
+        data$moved_ratio_50_all[i] <- 0
+        data$moved_ratio_4060_all[i] <- 0
+        data$moved_ratio_outside_all[i] <- 0
+        data$moved_count_all[i] <- 0
+        
+        data$moved_ratio_50_non50_start[i] <- 0
+        data$moved_ratio_4060_non50_start[i] <- 0
+        data$moved_ratio_outside_non50_start[i] <- 0
+        data$moved_count_non50_start[i] <- 0
+        
+        data$moved_ratio_50_outside[i] <- 0
+        data$moved_ratio_4060_outside[i] <- 0
+        data$moved_ratio_outside_outside[i] <- 0
+        data$moved_count_outside[i] <- 0
+        
+        data$moved_ratio_50_inside[i] <- 0
+        data$moved_ratio_4060_inside[i] <- 0
+        data$moved_ratio_outside_inside[i] <- 0
+        data$moved_count_inside[i] <- 0
       }
     }
   }
   
-  return(results)
+  return(data)
 }

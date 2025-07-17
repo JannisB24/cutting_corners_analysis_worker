@@ -1,3 +1,80 @@
+create_summary_table_slider <- function(data, var_name) {
+  # Function to calculate summary stats for a vector
+  calc_stats <- function(x) {
+    x <- x[!is.na(x)]  # Remove NAs
+    if(length(x) == 0) {
+      return(rep(NA, 7))
+    }
+    c(
+      min = round(min(x), 4),
+      q25 = round(quantile(x, 0.25), 4),
+      median = round(median(x), 4),
+      mean = round(mean(x), 4),
+      q75 = round(quantile(x, 0.75), 4),
+      max = round(max(x), 4),
+      sd = round(sd(x), 4)
+    )
+  }
+  
+  # Get the variable for each group
+  var_all <- data[[var_name]]
+  var_low <- data[data$els_slider.1.player.treatment == "low", var_name]
+  var_high <- data[data$els_slider.1.player.treatment == "high", var_name]
+  
+  # Calculate stats for each group
+  all_stats <- calc_stats(var_all)
+  low_stats <- calc_stats(var_low)
+  high_stats <- calc_stats(var_high)
+  
+  # Create results dataframe
+  results <- data.frame(
+    Group = c("All", "Low", "High"),
+    Min = c(all_stats[1], low_stats[1], high_stats[1]),
+    Q25 = c(all_stats[2], low_stats[2], high_stats[2]),
+    Median = c(all_stats[3], low_stats[3], high_stats[3]),
+    Mean = c(all_stats[4], low_stats[4], high_stats[4]),
+    Q75 = c(all_stats[5], low_stats[5], high_stats[5]),
+    Max = c(all_stats[6], low_stats[6], high_stats[6]),
+    SD = c(all_stats[7], low_stats[7], high_stats[7])
+  )
+  
+  return(results)
+}
+
+# Function to create all summary tables
+create_all_summary_tables <- function(data) {
+  variables <- c(
+    "sliders_at_50_count", 
+    "sliders_in_range_count", 
+    "ratio_50_all", 
+    "ratio_50_outside", 
+    "ratio_50_inside", 
+    "ratio_4060_all", 
+    "ratio_4060_outside", 
+    "ratio_4060_inside", 
+    "moved_ratio_50_all", 
+    "moved_ratio_50_outside", 
+    "moved_ratio_50_inside"
+  )
+  
+  # Create a list to store all tables
+  summary_tables <- list()
+  
+  # Generate table for each variable
+  for(var in variables) {
+    if(var %in% names(data)) {
+      summary_tables[[var]] <- create_summary_table_slider(data, var)
+      cat("\n=== Summary Statistics for", var, "===\n")
+      print(summary_tables[[var]])
+      cat("\n")
+    } else {
+      cat("Warning: Variable", var, "not found in data\n")
+    }
+  }
+  
+  return(invisible(summary_tables))
+}
+
 summary_statistics_age <- function(data) {
   # Calculate summary statistics
   stats <- c(

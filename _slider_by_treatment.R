@@ -1,53 +1,33 @@
-slider_by_treatment <- function(data_subset, treatment_name) {
+slider_by_treatment <- function(data_subset) {
+  sliders_at_50_per_obs <- numeric(nrow(data_subset))
+  sliders_in_range_per_obs <- numeric(nrow(data_subset))
   
-  # sliders exactly dragged to 50
-  sliders_at_50 <- sapply(0:47, function(i) {
-    col_name <- paste0("els_slider.1.player.slider_final_", i)
-    if(col_name %in% names(data_subset)) {
-      sum(data_subset[[col_name]] == 50, na.rm = TRUE)
-    } else {
-      0
+  for(row in 1:nrow(data_subset)) {
+    count_at_50 <- 0
+    count_in_range <- 0
+    
+    for(i in 0:47) {
+      col_name <- paste0("els_slider.1.player.slider_final_", i)
+      if(col_name %in% names(data_subset)) {
+        slider_value <- data_subset[[col_name]][row]
+        
+        if(!is.na(slider_value)) {
+          if(slider_value == 50) {
+            count_at_50 <- count_at_50 + 1
+          }
+        
+          if(slider_value >= 40 & slider_value <= 60) {
+            count_in_range <- count_in_range + 1
+          }
+        }
+      }
     }
-  })
+    sliders_at_50_per_obs[row] <- count_at_50
+    sliders_in_range_per_obs[row] <- count_in_range
+  }
   
-  # sliders dragged to 40-60
-  sliders_in_range <- sapply(0:47, function(i) {
-    col_name <- paste0("els_slider.1.player.slider_final_", i)
-    if(col_name %in% names(data_subset)) {
-      sum(data_subset[[col_name]] >= 40 & data_subset[[col_name]] <= 60, na.rm = TRUE)
-    } else {
-      0
-    }
-  })
+  data_subset$sliders_at_50_count <- sliders_at_50_per_obs
+  data_subset$sliders_in_range_count <- sliders_in_range_per_obs
   
-  # Create histograms
-  par(mfrow = c(1, 2))
-  
-  hist(sliders_at_50, 
-       breaks = seq(0.5, 48.5, by = 1),
-       main = paste("Sliders at 50 -", treatment_name, "Treatment"),
-       xlab = "Number of Sliders at 50",
-       ylab = "Frequency",
-       xlim = c(1, 48))
-  
-  hist(sliders_in_range, 
-       breaks = seq(0.5, 48.5, by = 1),
-       main = paste("Sliders in 40-60 Range -", treatment_name, "Treatment"),
-       xlab = "Number of Sliders in 40-60",
-       ylab = "Frequency",
-       xlim = c(1, 48))
-  
-  par(mfrow = c(1, 1))
-  
-  # Print statistics
-  cat("=== TREATMENT:", toupper(treatment_name), "===\n")
-  cat("\nSliders at 50:\n")
-  print(summary(sliders_at_50))
-  cat("SD:", sd(sliders_at_50, na.rm = TRUE), "\n")
-  
-  cat("\nSliders in 40-60 range:\n")
-  print(summary(sliders_in_range))
-  cat("SD:", sd(sliders_in_range, na.rm = TRUE), "\n\n")
-  
-  return(list(sliders_at_50 = sliders_at_50, sliders_in_range = sliders_in_range))
+  return(data_subset)
 }

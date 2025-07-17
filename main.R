@@ -246,37 +246,44 @@ els_score_treatment_mann_whitney <- wilcox.test(
 data_low <- data[data$els_slider.1.player.treatment == "low", ]
 data_high <- data[data$els_slider.1.player.treatment == "high", ]
 
-# Counts of sliders at 50 and in range 40-60 by treatment
-slider_all_results <- slider_by_treatment(data, "All")
-slider_low_results <- slider_by_treatment(data_low, "Low")
-slider_high_results <- slider_by_treatment(data_high, "High")
-
-# Histograms of sliders at 50 and in range 40-60 by treatment
-slider_all_slider_hist <- slider_hist(slider_all_results$sliders_at_50, slider_all_results$sliders_in_range, "All")
-slider_low_slider_hist <- slider_hist(slider_low_results$sliders_at_50, slider_low_results$sliders_in_range, "Low")
-slider_high_slider_hist <- slider_hist(slider_high_results$sliders_at_50, slider_high_results$sliders_in_range, "High")
+# Counts of sliders at 50 or range 40-60 by treatment
+data <- slider_by_treatment(data)
+data_low <- slider_by_treatment(data_low)
+data_high <- slider_by_treatment(data_high)
 
 # Ratios of sliders at 50 and in range 40-60 by treatment
-slider_all_ratios <- slider_ratios(data)
-slider_low_ratios <- slider_ratios(data_low)
-slider_high_ratios <- slider_ratios(data_high)
+data <- slider_ratios(data)
+data_low <- slider_ratios(data_low)
+data_high <- slider_ratios(data_high)
 
 # Rule-following ratios among moved sliders only
-slider_all_ratios_moved <- slider_ratios_moved(data)
-slider_low_ratios_moved <- slider_ratios_moved(data_low)
-slider_high_ratios_moved <- slider_ratios_moved(data_high)
+data <- slider_ratios_moved(data)
+data_low <- slider_ratios_moved(data_low)
+data_high <- slider_ratios_moved(data_high)
+
+# Histograms of sliders at 50 and in range 40-60 by treatment
+slider_hist(data, "sliders_at_50_count", "Sliders at 50 - All", "Count of Sliders at 50")
+slider_hist(data_low, "sliders_at_50_count", "Sliders at 50 - Low", "Count of Sliders at 50")
+slider_hist(data_high, "sliders_at_50_count", "Sliders at 50 - High", "Count of Sliders at 50")
+slider_hist(data, "sliders_in_range_count", "Sliders in Range 40-60 - All", "Count of Sliders in Range 40-60")
+slider_hist(data_low, "sliders_in_range_count", "Sliders in Range 40-60 - Low", "Count of Sliders in Range 40-60")
+slider_hist(data_high, "sliders_in_range_count", "Sliders in Range 40-60 - High", "Count of Sliders in Range 40-60")
+
+# Summary Stats
+summary_tables_slider <- create_all_summary_tables(data)
 
 # treatment variation tests
-wilcox.test(low_ratios$ratio_50_all, high_ratios$ratio_50_all)
-wilcox.test(low_ratios$ratio_4060_all, high_ratios$ratio_4060_all)
-wilcox.test(low_ratios$ratio_50_outside, high_ratios$ratio_50_outside)
-wilcox.test(low_ratios$ratio_4060_outside, high_ratios$ratio_4060_outside)
-wilcox.test(low_ratios$ratio_50_inside, high_ratios$ratio_50_inside)
-wilcox.test(low_ratios$ratio_4060_inside, high_ratios$ratio_4060_inside)
-wilcox.test(low_ratios$ratio_50_arbitrary_compliance, high_ratios$ratio_50_arbitrary_compliance)
-wilcox.test(low_ratios_moved$ratio_50_active_following, high_ratios_moved$ratio_50_active_following)
-wilcox.test(low_ratios_moved$ratio_50_effort_required, high_ratios_moved$ratio_50_effort_required)
-wilcox.test(low_ratios_moved$ratio_50_total_engagement, high_ratios_moved$ratio_50_total_engagement)
+wilcox.test(data_low$sliders_at_50_count, data_high$sliders_at_50_count)
+wilcox.test(data_low$sliders_in_range_count, data_high$sliders_in_range_count)
+wilcox.test(data_low$ratio_50_all, data_high$ratio_50_all)
+wilcox.test(data_low$ratio_50_outside, data_high$ratio_50_outside)
+wilcox.test(data_low$ratio_50_inside, data_high$ratio_50_inside)
+wilcox.test(data_low$ratio_4060_all, data_high$ratio_4060_all)
+wilcox.test(data_low$ratio_4060_outside, data_high$ratio_4060_outside)
+wilcox.test(data_low$ratio_4060_inside, data_high$ratio_4060_inside)
+wilcox.test(data_low$moved_ratio_50_all, data_high$moved_ratio_50_all)
+wilcox.test(data_low$moved_ratio_50_outside, data_high$moved_ratio_50_outside)
+wilcox.test(data_low$moved_ratio_50_inside, data_high$moved_ratio_50_inside)
 
 # regressions with worker vars
 ratio_50_all_work_exp_regression <- lm(ratio_50_all ~ work_exp + work_type + work_exp_duration, data = regression_data)
