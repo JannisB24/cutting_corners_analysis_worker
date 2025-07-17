@@ -272,8 +272,13 @@ slider_hist(data_high, "sliders_in_range_count", "Sliders in Range 40-60 - High"
 # Summary Stats
 summary_tables_slider <- create_all_summary_tables(data)
 
-# treatment variation tests
+# treatment variation tests (as in the PAP)
+#i)
+wilcox.test(data_low$sliders_at_50_given_4060, data_high$sliders_at_50_given_4060)
+#ii)
 wilcox.test(data_low$sliders_at_50_count, data_high$sliders_at_50_count)
+
+# more treatment variation tests
 wilcox.test(data_low$sliders_in_range_count, data_high$sliders_in_range_count)
 wilcox.test(data_low$ratio_50_all, data_high$ratio_50_all)
 wilcox.test(data_low$ratio_50_outside, data_high$ratio_50_outside)
