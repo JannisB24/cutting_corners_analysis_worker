@@ -3,12 +3,7 @@ slider_ratios_moved <- function(data) {
   data$moved_ratio_50_all <- NA           
   data$moved_ratio_4060_all <- NA         
   data$moved_ratio_outside_all <- NA      
-  data$moved_count_all <- NA              
-  
-  data$moved_ratio_50_non50_start <- NA   
-  data$moved_ratio_4060_non50_start <- NA 
-  data$moved_ratio_outside_non50_start <- NA 
-  data$moved_count_non50_start <- NA      
+  data$moved_count_all <- NA
   
   data$moved_ratio_50_outside <- NA       
   data$moved_ratio_4060_outside <- NA     
@@ -28,7 +23,7 @@ slider_ratios_moved <- function(data) {
     final_vals <- final_vals[valid_indices]
     
     if(length(initial_vals) > 0) {
-      moved_indices <- initial_vals != final_vals
+      moved_indices <- (initial_vals != final_vals) & (final_vals >= 40 & final_vals <= 60)
       moved_initial <- initial_vals[moved_indices]
       moved_final <- final_vals[moved_indices]
       
@@ -38,22 +33,6 @@ slider_ratios_moved <- function(data) {
         data$moved_ratio_4060_all[i] <- sum(moved_final >= 40 & moved_final <= 60 & moved_final != 50) / length(moved_final)
         data$moved_ratio_outside_all[i] <- sum(moved_final < 40 | moved_final > 60) / length(moved_final)
         data$moved_count_all[i] <- length(moved_final)
-        
-        # Among moved sliders that didn't start at 50
-        non50_start_indices <- moved_initial != 50
-        if(sum(non50_start_indices) > 0) {
-          non50_final <- moved_final[non50_start_indices]
-          data$moved_ratio_50_non50_start[i] <- sum(non50_final == 50) / sum(non50_start_indices)
-          data$moved_ratio_4060_non50_start[i] <- sum(non50_final >= 40 & non50_final <= 60 & non50_final != 50) / sum(non50_start_indices)
-          data$moved_ratio_outside_non50_start[i] <- sum(non50_final < 40 | non50_final > 60) / sum(non50_start_indices)
-          data$moved_count_non50_start[i] <- sum(non50_start_indices)
-        } else {
-          # No non-50 starters that moved - set ratios to 0
-          data$moved_ratio_50_non50_start[i] <- 0
-          data$moved_ratio_4060_non50_start[i] <- 0
-          data$moved_ratio_outside_non50_start[i] <- 0
-          data$moved_count_non50_start[i] <- 0
-        }
         
         # Among moved sliders that started outside 40-60
         outside_indices <- moved_initial < 40 | moved_initial > 60
@@ -92,11 +71,6 @@ slider_ratios_moved <- function(data) {
         data$moved_ratio_4060_all[i] <- 0
         data$moved_ratio_outside_all[i] <- 0
         data$moved_count_all[i] <- 0
-        
-        data$moved_ratio_50_non50_start[i] <- 0
-        data$moved_ratio_4060_non50_start[i] <- 0
-        data$moved_ratio_outside_non50_start[i] <- 0
-        data$moved_count_non50_start[i] <- 0
         
         data$moved_ratio_50_outside[i] <- 0
         data$moved_ratio_4060_outside[i] <- 0
