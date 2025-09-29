@@ -32,9 +32,9 @@ p <- as.matrix(ct$p)
 
 # 3) Helpers
 fmt_num <- function(x, digits = 2) sprintf(paste0("%.", digits, "f"), x)
-starify <- function(p) ifelse(p < 0.001, "***",
-                              ifelse(p < 0.01,  "**",
-                                     ifelse(p < 0.05,  "*", "")))
+starify <- function(p) ifelse(p < 0.01, "***",
+                              ifelse(p < 0.05,  "**",
+                                     ifelse(p < 0.10,  "*", "")))
 
 latex_escape <- function(x) {
   x <- gsub("\\\\", "\\\\textbackslash{}", x)
@@ -112,7 +112,7 @@ corr_to_latex <- function(r, p,
     paste0(
       "\\begin{flushleft}\\footnotesize\n",
       "Notes: Entries are Pearson correlation coefficients. ",
-      "Significance: $\\ast$ p < 0.05, $\\ast\\ast$ p < 0.01, $\\ast\\ast\\ast$ p < 0.001. ",
+      "Significance: $\\ast$ p < 0.10, $\\ast\\ast$ p < 0.05, $\\ast\\ast\\ast$ p < 0.01. ",
       if (identical(note_adjust, "BH")) "P-values adjusted using the Benjamini--Hochberg method. ",
       "Pairwise deletion used for missing data.\n",
       "\\end{flushleft}\n"

@@ -97,11 +97,24 @@ summary(mother_birth_year_beliefs_regression)
 # regression of mother_birth_year on ELS, MF20, Rule Orientation
 mother_birth_year_other_scales_regression <- lm(honesty.1.player.mother_birth_year ~ 
                                                   els_slider.1.player.treatment +
+                                                  moved_ratio_50_all +
                                                   els_slider.1.player.els_score + 
                                                   moral_foundations_20.1.player.moral_foundations_score + 
-                                                  rule_orientation.1.player.rule_orientation_score,
+                                                  rule_orientation.1.player.rule_orientation_score +
+                                                  ability_sliders_50_z +
+                                                  slider_50_difficulty_z,,
                                                 data = data)
 summary(mother_birth_year_other_scales_regression)
+
+honesty_regression(mother_birth_year_other_scales_regression, 
+                   title = "Regression of Mother Birth Year on ELS, MF20, and Rule Orientation",
+                   covariate.labels = c("Treatment (Low)", 
+                                        "Moved Ratio (50)", 
+                                        "ELS Score", 
+                                        "MF20 Score", 
+                                        "Rule Orientation Score", 
+                                        "Ability (z)", 
+                                        "Difficulty (z)"))
 
 # regression of mother_birth_year on demographics
 mother_birth_year_demographics_regression <- lm(honesty.1.player.mother_birth_year ~ 

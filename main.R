@@ -79,6 +79,14 @@ treat_low <- data[data$els_slider.1.player.treatment == "low", ]
 # Format Demographics & Beliefs
 ##########################################################################################
 
+data$work_experience_binary <- ifelse(
+  data$els_slider.1.player.work_experience_worker %in% c("yes_currently", "yes_previous"), 1L,
+  ifelse(data$els_slider.1.player.work_experience_worker == "no", 0L, NA_integer_)
+)
+data$work_duration_more_2_years <- ifelse(
+  data$els_slider.1.player.work_experience_duration == "more_2_years", 1L,
+  ifelse(is.na(data$els_slider.1.player.work_experience_duration) | data$els_slider.1.player.work_experience_duration == "prefer_not_to_say", NA_integer_, 0L)
+)
 data$distance_assigned_manager <- abs(data$els_slider.1.player.manager_els - data$els_slider.1.player.els_score)
 data$gender_male <- ifelse(data$demographics.1.player.gender == "male", 1, ifelse(data$demographics.1.player.gender == "female", 0, NA))
 data$bachelor_or_higher <- ifelse(
@@ -246,7 +254,7 @@ summary(els_score_time_regression)
 
 # regression of els_score on work_experience_worker
 els_score_work_experience_regression <- lm(
-  els_slider.1.player.els_score ~ els_slider.1.player.work_experience_worker,
+  els_slider.1.player.els_score ~ work_experience_binary,
   data = data
 )
 summary(els_score_work_experience_regression)
@@ -265,7 +273,7 @@ summary(els_score_work_type_regression)
 
 # regression of els_score on work_experience_duration
 els_score_work_experience_duration_regression <- lm(
-  els_slider.1.player.els_score ~ els_slider.1.player.work_experience_duration,
+  els_slider.1.player.els_score ~ work_duration_more_2_years,
   data = data
 )
 summary(els_score_work_experience_duration_regression)
@@ -353,7 +361,7 @@ print(work_type_treatment_chisq)
 
 # Chi-square test: Work experience duration across treatments
 work_exp_duration_treatment_chisq <- chisq.test(
-  table(data$els_slider.1.player.work_experience_duration, 
+  table(data$work_duration_more_2_years, 
         data$els_slider.1.player.treatment)
 )
 print(work_exp_duration_treatment_chisq)
@@ -424,19 +432,34 @@ ggplot(data, aes(x = sliders_at_50_count)) +
 ggsave("../Masterthesis-Overleaf/Images/sliders_at_50_full_sample.png", width = 6, height = 4, dpi = 400)
 
 # Histograms of moved sliders at 50 for both treatments
+
 plot_data <- data %>%
   mutate(bin = cut(moved_ratio_50_all, 
                    breaks = seq(0, 1, by = 0.1), 
                    include.lowest = TRUE, 
                    right = TRUE)) %>%
-  group_by(bin, els_slider.1.player.treatment) %>%
-  summarise(n = n(), .groups = "drop") %>%
-  group_by(els_slider.1.player.treatment) %>%           
-  mutate(prop = n / sum(n)) %>%     
+  count(els_slider.1.player.treatment, bin, name = "n") %>%
+  group_by(els_slider.1.player.treatment) %>%
+  mutate(
+    N_treat = sum(n),
+    prop = n / N_treat,
+    se = sqrt(prop * (1 - prop) / N_treat),
+    ci_low = pmax(prop - 1.96 * se, 0),
+    ci_high = pmin(prop + 1.96 * se, 1)
+  ) %>%
+  mutate(els_slider.1.player.treatment = factor(els_slider.1.player.treatment,
+                                                levels = c("low", "high"))) %>%
   ungroup()
 
 ggplot(plot_data, aes(x = bin, y = prop, fill = els_slider.1.player.treatment)) +
   geom_col(position = position_dodge(width = 0.9), width = 0.8, color = "white", alpha = 0.9) +
+  geom_errorbar(
+    aes(ymin = ci_low, ymax = ci_high, group = els_slider.1.player.treatment),
+    position = position_dodge(width = 0.9),
+    width = 0.2,
+    linewidth = 0.4,
+    color = "black"
+  ) +
   scale_y_continuous(labels = scales::percent_format(), expand = expansion(mult = 0.02),
                      breaks = seq(0, 1, by = 0.1), limits = c(0, 1)) +
   scale_fill_manual(values = c("low" = "#4A90E2", "high" = "#E94A2B")) +
@@ -445,6 +468,7 @@ ggplot(plot_data, aes(x = bin, y = prop, fill = els_slider.1.player.treatment)) 
   theme(axis.text.x = element_text(angle = 45, hjust = 1),
         legend.position = c(0.1, 0.9),
         legend.justification = c(0, 1))
+
 ggsave("../Masterthesis-Overleaf/Images/moved_sliders_50_all_treatment_bins.png", width = 6, height = 4, dpi = 400)
 
 
@@ -497,36 +521,59 @@ wilcox.test(data_low$ratio_4060_inside, data_high$ratio_4060_inside)
 wilcox.test(data_low$moved_ratio_50_outside, data_high$moved_ratio_50_outside)
 wilcox.test(data_low$moved_ratio_50_inside, data_high$moved_ratio_50_inside)
 
+# regression with work experience
+moved_ratio_50_work_exp_regression <- lm(moved_ratio_50_all ~ 
+                                           work_experience_binary +
+                                           els_slider.1.player.els_score +
+                                           ability_sliders_50_z +
+                                           slider_50_difficulty_z,
+                                           data = data)
+summary(moved_ratio_50_work_exp_regression)
+
+sliders_at_50_count_work_exp_regression <- lm(sliders_at_50_count ~ 
+                                                 work_experience_binary +
+                                                 els_slider.1.player.els_score +
+                                                 ability_sliders_50_z +
+                                                 slider_50_difficulty_z,
+                                               data = data)
+summary(sliders_at_50_count_work_exp_regression)
+
+moved_ratio_50_work_exp(moved_ratio_50_work_exp_regression, sliders_at_50_count_work_exp_regression,
+                        title = "Regression of dependent variables on work experience and ELS, controlling for ability and difficulty",
+                        covariate.labels = c("Work Experience", "ELS Score", "Ability (z)", "Difficulty (z)"))
+
+
+
 # regressions with worker vars
-moved_ratio_50_all_work_exp_regression <- lm(moved_ratio_50_all ~ 
-                                         els_slider.1.player.work_experience_worker + 
+moved_ratio_50_all_work_regression <- lm(moved_ratio_50_all ~ 
+                                         work_duration_more_2_years +
                                          els_slider.1.player.work_type_apprenticeship +
                                          els_slider.1.player.work_type_internship +
                                          els_slider.1.player.work_type_working_student +
                                          els_slider.1.player.work_type_part_time_job +
                                          els_slider.1.player.work_type_full_time_job +
                                          els_slider.1.player.work_type_volunteer_work +
-                                         els_slider.1.player.work_experience_duration +
-                                         els_slider.1.player.els_score +
                                          ability_sliders_50_z +
                                          slider_50_difficulty_z, 
                                        data = data)
-summary(moved_ratio_50_all_work_exp_regression)
+summary(moved_ratio_50_all_work_regression)
 
-sliders_at_50_count_work_exp_regression <- lm(sliders_at_50_count ~ 
-                                            els_slider.1.player.work_experience_worker + 
+sliders_at_50_count_all_work_regression <- lm(sliders_at_50_count ~ 
+                                            work_duration_more_2_years +
                                             els_slider.1.player.work_type_apprenticeship +
                                             els_slider.1.player.work_type_internship +
                                             els_slider.1.player.work_type_working_student +
                                             els_slider.1.player.work_type_part_time_job +
                                             els_slider.1.player.work_type_full_time_job +
                                             els_slider.1.player.work_type_volunteer_work +
-                                            els_slider.1.player.work_experience_duration +
-                                            els_slider.1.player.els_score +
                                             ability_sliders_50_z +
                                             slider_50_difficulty_z, 
                                           data = data)
-summary(sliders_at_50_count_work_exp_regression)
+summary(sliders_at_50_count_all_work_regression)
+
+moved_ratio_50_all_work(moved_ratio_50_all_work_regression, sliders_at_50_count_all_work_regression,
+                        title = "Regression of dependent variables on work types and duration, controlling for ability and difficulty",
+                        covariate.labels = c("Work Duration > 2 years", "Apprenticeship", "Internship", "Working Student", "Part-time Job", "Full-time Job", "Volunteer Work", "Ability (z)", "Difficulty (z)"))
 
 # regressions with treatment, controlling for difficulty, and skill
 moved_ratio_50_all_treatment_basic_regression <- lm(moved_ratio_50_all ~ els_slider.1.player.treatment + 
@@ -545,27 +592,29 @@ treatment_basic_regression(moved_ratio_50_all_treatment_basic_regression, slider
                                 covariate.labels = c("Treatment (Low)", "Ability (z)", "Difficulty (z)"))
 
 # regressions with treatment, controlling for difficulty, skill, and sociodemographics
-moved_ratio_50_all_treatment_regression <- lm(moved_ratio_50_all ~ els_slider.1.player.treatment + 
-                                          els_slider.1.player.els_score +
-                                          ability_sliders_50_z +
-                                          slider_50_difficulty_z +
+moved_ratio_50_treatment_demographics_regression <- lm(moved_ratio_50_all ~ els_slider.1.player.treatment + 
                                           demographics.1.player.age + 
                                           gender_male +
                                           bachelor_or_higher +
-                                          political_left,
+                                          political_left +
+                                          ability_sliders_50_z +
+                                          slider_50_difficulty_z,
                                         data = data)
 summary(moved_ratio_50_all_treatment_regression)
 
-sliders_at_50_count_treatment_regression <- lm(sliders_at_50_count ~ els_slider.1.player.treatment + 
-                                             els_slider.1.player.els_score +
-                                             ability_sliders_50_z +
-                                             slider_50_difficulty_z + 
-                                             demographics.1.player.age + 
-                                             gender_male +
-                                             bachelor_or_higher +
-                                             political_left,
-                                           data = data)
+sliders_at_50_count_treatment_demographics_regression <- lm(sliders_at_50_count ~ els_slider.1.player.treatment + 
+                                           demographics.1.player.age + 
+                                           gender_male +
+                                           bachelor_or_higher +
+                                           political_left +
+                                           ability_sliders_50_z +
+                                           slider_50_difficulty_z,
+                                         data = data)
 summary(sliders_at_50_count_treatment_regression)
+
+treatment_demographics(moved_ratio_50_treatment_demographics_regression, sliders_at_50_count_treatment_demographics_regression,
+                                title = "Regression of dependent variables on treatment and demographics, controlling for ability and difficulty",
+                                covariate.labels = c("Treatment (Low)", "Age", "Male", "Bachelor or Higher", "Political Left", "Ability (z)", "Difficulty (z)"))
 
 # regressions with treatment, beliefs, controlling for difficulty and skill
 moved_ratio_50_all_belief_regression <- lm(moved_ratio_50_all ~ els_slider.1.player.treatment +
@@ -573,20 +622,32 @@ moved_ratio_50_all_belief_regression <- lm(moved_ratio_50_all ~ els_slider.1.pla
                                         group_compliance_z +
                                         group_noncompliance_z +
                                         empirical_belief_z +
-                                        els_slider.1.player.slider_50_difficulty + 
-                                        ability_score,
+                                        ability_sliders_50_z +
+                                        slider_50_difficulty_z,
                                       data = data)
 summary(moved_ratio_50_all_belief_regression)
 
-sliders_at_50_count_belief_regression <- lm(sliders_at_50_count ~ els_slider.1.player.treatment *
+sliders_at_50_count_belief_regression <- lm(sliders_at_50_count ~ els_slider.1.player.treatment +
                                           personal_belief_z +
                                           group_compliance_z +
                                           group_noncompliance_z +
                                           empirical_belief_z +
-                                          els_slider.1.player.slider_50_difficulty + 
-                                          ability_score,
+                                          ability_sliders_50_z +
+                                          slider_50_difficulty_z,
                                         data = data)
 summary(sliders_at_50_count_belief_regression)
+
+all_beliefs_without_interaction(moved_ratio_50_all_belief_regression, sliders_at_50_count_belief_regression,
+                        title = "Regression of dependent variables on treatment and beliefs, controlling for ability and difficulty",
+                        covariate.labels = c(
+                          "Treatment (Low)", 
+                          "Personal Belief (z)",
+                          "Group Compliance (z)",
+                          "Group Noncompliance (z)",
+                          "Empirical Belief (z)",
+                          "Ability (z)", 
+                          "Difficulty (z)"
+                        ))
 
 # additionally control for interaction effects between treatment and beliefs
 moved_ratio_50_all_interaction_belief_regression <- lm(moved_ratio_50_all ~
@@ -639,7 +700,17 @@ moved_ratio_50_all_personal_belief_regression <- lm(moved_ratio_50_all ~
                                                  slider_50_difficulty_z,
                                                data = data)
 summary(moved_ratio_50_all_personal_belief_regression)
-single_belief_regression(moved_ratio_50_all_personal_belief_regression, title = "Personal Belief Regression")
+
+sliders_at_50_count_personal_belief_regression <- lm(sliders_at_50_count ~ 
+                                               els_slider.1.player.treatment +
+                                               slider_beliefs.1.player.normative_belief_personal +
+                                               ability_sliders_50_z + 
+                                               slider_50_difficulty_z,
+                                             data = data)
+summary(sliders_at_50_count_personal_belief_regression)
+personal_belief_regression(moved_ratio_50_all_personal_belief_regression, sliders_at_50_count_personal_belief_regression,
+                          title = "Personal Belief Regression",
+                          covariate.labels = c("Treatment (Low)", "Personal Belief (z)", "Ability (z)", "Difficulty (z)"))
 
 moved_ratio_50_all_group_compliance_regression <- lm(moved_ratio_50_all ~ 
                                                      els_slider.1.player.treatment +
@@ -648,7 +719,17 @@ moved_ratio_50_all_group_compliance_regression <- lm(moved_ratio_50_all ~
                                                      slider_50_difficulty_z,
                                                    data = data)
 summary(moved_ratio_50_all_group_compliance_regression)
-single_belief_regression(moved_ratio_50_all_group_compliance_regression, title = "Group Compliance Regression")
+
+sliders_at_50_count_group_compliance_regression <- lm(sliders_at_50_count ~ 
+                                                     els_slider.1.player.treatment +
+                                                     group_compliance_binary +
+                                                     ability_sliders_50_z + 
+                                                     slider_50_difficulty_z,
+                                                   data = data)
+summary(sliders_at_50_count_group_compliance_regression)
+group_compliance_regression(moved_ratio_50_all_group_compliance_regression, sliders_at_50_count_group_compliance_regression,
+                          title = "Group Compliance Regression",
+                          covariate.labels = c("Treatment (Low)", "Group Compliance", "Ability (z)", "Difficulty (z)"))
 
 moved_ratio_50_all_group_noncompliance_regression <- lm(moved_ratio_50_all ~ 
                                                      els_slider.1.player.treatment +
@@ -657,7 +738,17 @@ moved_ratio_50_all_group_noncompliance_regression <- lm(moved_ratio_50_all ~
                                                      slider_50_difficulty_z,
                                                    data = data)
 summary(moved_ratio_50_all_group_noncompliance_regression)
-single_belief_regression(moved_ratio_50_all_group_noncompliance_regression, title = "Group Non-compliance Regression")
+
+sliders_at_50_count_group_noncompliance_regression <- lm(sliders_at_50_count ~ 
+                                                     els_slider.1.player.treatment +
+                                                     group_noncompliance_binary +
+                                                     ability_sliders_50_z + 
+                                                     slider_50_difficulty_z,
+                                                   data = data)
+summary(sliders_at_50_count_group_noncompliance_regression)
+group_noncompliance_regression(moved_ratio_50_all_group_noncompliance_regression, sliders_at_50_count_group_noncompliance_regression,
+                          title = "Group Non-compliance Regression",
+                          covariate.labels = c("Treatment (Low)", "Group Non-compliance", "Ability (z)", "Difficulty (z)"))
 
 moved_ratio_50_all_empirical_belief_regression <- lm(moved_ratio_50_all ~ 
                                                        els_slider.1.player.treatment +
@@ -666,7 +757,17 @@ moved_ratio_50_all_empirical_belief_regression <- lm(moved_ratio_50_all ~
                                                        slider_50_difficulty_z,
                                                      data = data)
 summary(moved_ratio_50_all_empirical_belief_regression)
-single_belief_regression(moved_ratio_50_all_empirical_belief_regression, title = "Empirical Belief Regression")
+
+sliders_at_50_count_empirical_belief_regression <- lm(sliders_at_50_count ~ 
+                                                       els_slider.1.player.treatment +
+                                                       slider_beliefs.1.player.empirical_belief_compliance +
+                                                       ability_sliders_50_z + 
+                                                       slider_50_difficulty_z,
+                                                     data = data)
+summary(sliders_at_50_count_empirical_belief_regression)
+empirical_belief_regression(moved_ratio_50_all_empirical_belief_regression, sliders_at_50_count_empirical_belief_regression,
+                          title = "Descriptive Belief Regression",
+                          covariate.labels = c("Treatment (Low)", "Descriptive Belief (z)", "Ability (z)", "Difficulty (z)"))
 
 # regression of ratio_50_all on els_score, moral_foundations_score, rule_orientation_score, controlling for treatment, difficulty, and skill
 moved_ratio_50_all_mf20_rule_regression <- lm(moved_ratio_50_all ~ 
@@ -688,6 +789,20 @@ sliders_at_50_count_mf20_rule_regression <- lm(sliders_at_50_count ~
                                                slider_50_difficulty_z,
                                              data = data)
 summary(sliders_at_50_count_mf20_rule_regression)
+
+mf_ros_regression(moved_ratio_50_all_mf20_rule_regression, sliders_at_50_count_mf20_rule_regression,
+                        title = "Regression of dependent variables on ELS, MF20, and ROS, controlling for treatment, ability, and difficulty",
+                        covariate.labels = c(
+                          "Treatment (Low)", 
+                          "ELS Score",
+                          "Moral Foundations Score",
+                          "Rule Orientation Score",
+                          "Treatment x ELS Score",
+                          "Treatment x Moral Foundations Score",
+                          "Treatment x Rule Orientation Score",
+                          "Ability (z)", 
+                          "Difficulty (z)"
+                        ))
 
 # regression of ratio_50_all on mother_birth_year, controlling for difficulty and skill
 moved_ratio_50_all_mother_birth_year_regression <- lm(moved_ratio_50_all ~ 
@@ -779,8 +894,45 @@ belief_vars <- c("slider_beliefs.1.player.normative_belief_personal",
 cor(data[, belief_vars], use = "complete.obs")
 
 # regression of empirical belief on treatment, els_score, moral_foundations_score, rule_orientation_score, and mother_birth_year controlling for difficulty and skill
+personal_belief_questionnaires_regression <- lm(slider_beliefs.1.player.normative_belief_personal ~ 
+                                    els_slider.1.player.treatment +
+                                    moved_ratio_50_all +
+                                    els_slider.1.player.els_score +
+                                    moral_foundations_20.1.player.moral_foundations_score +
+                                    rule_orientation.1.player.rule_orientation_score +
+                                    honesty.1.player.mother_birth_year +
+                                    ability_sliders_50_z + 
+                                    slider_50_difficulty_z,
+                                  data = data)
+summary(personal_belief_questionnaires_regression)
+
+group_compliance_questionnaires_regression <- lm(slider_beliefs.1.player.normative_belief_group_compliance ~ 
+                                    els_slider.1.player.treatment +
+                                    moved_ratio_50_all +
+                                    els_slider.1.player.els_score +
+                                    moral_foundations_20.1.player.moral_foundations_score +
+                                    rule_orientation.1.player.rule_orientation_score +
+                                    honesty.1.player.mother_birth_year +
+                                    ability_sliders_50_z + 
+                                    slider_50_difficulty_z,
+                                  data = data)
+summary(group_compliance_questionnaires_regression)
+
+group_noncompliance_questionnaires_regression <- lm(slider_beliefs.1.player.normative_belief_group_noncompliance ~ 
+                                    els_slider.1.player.treatment +
+                                    moved_ratio_50_all +
+                                    els_slider.1.player.els_score +
+                                    moral_foundations_20.1.player.moral_foundations_score +
+                                    rule_orientation.1.player.rule_orientation_score +
+                                    honesty.1.player.mother_birth_year +
+                                    ability_sliders_50_z + 
+                                    slider_50_difficulty_z,
+                                  data = data)
+summary(group_noncompliance_questionnaires_regression)
+
 empirical_belief_questionnaires_regression <- lm(slider_beliefs.1.player.empirical_belief_compliance ~ 
                                     els_slider.1.player.treatment +
+                                    moved_ratio_50_all +
                                     els_slider.1.player.els_score +
                                     moral_foundations_20.1.player.moral_foundations_score +
                                     rule_orientation.1.player.rule_orientation_score +
@@ -789,6 +941,22 @@ empirical_belief_questionnaires_regression <- lm(slider_beliefs.1.player.empiric
                                     slider_50_difficulty_z,
                                   data = data)
 summary(empirical_belief_questionnaires_regression)
+
+all_variables_on_beliefs(personal_belief_questionnaires_regression,
+                                 group_compliance_questionnaires_regression,
+                                 group_noncompliance_questionnaires_regression,
+                                 empirical_belief_questionnaires_regression,
+                        title = "Regression of beliefs on treatment, ELS, MF20, ROS, and Mother's Birth Year, controlling for ability and difficulty",
+                        covariate.labels = c(
+                          "Treatment (Low)", 
+                          "Moved Sliders (50)",
+                          "ELS Score",
+                          "Moral Foundations Score",
+                          "Rule Orientation Score",
+                          "Mother's Birth Year",
+                          "Ability (z)", 
+                          "Difficulty (z)"
+                        ))
 
 # regression of empirical belief on demographics controlling for difficulty and skill
 empirical_belief_demographics_regression <- lm(slider_beliefs.1.player.empirical_belief_compliance ~ 

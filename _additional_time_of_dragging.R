@@ -133,53 +133,69 @@ extract_first_attempt_to_50 <- function(data) {
 }
 
 create_first_attempt_plot <- function(data, treatment_name) {
+  # Get raw first-attempt times in seconds and drop anything > 120
   times_first_50 <- extract_first_attempt_to_50(data)
-  max_time <- max(max(times_first_50), 120)
-  bins <- seq(0, max_time + 10, by = 10)
-  bin_labels <- paste0(bins[-length(bins)], "-", bins[-1])
-  movement_counts <- hist(times_first_50, breaks = bins, plot = FALSE)$counts
+  times_first_50 <- times_first_50[!is.na(times_first_50) & times_first_50 <= 120]
   
+  # Parameters
+  bin_width <- 10
+  bins <- seq(0, 120, by = bin_width)  # last bin is (110, 120], no 120–130 bin
+  
+  # Histogram counts using (a, b] bins to include 120 in the last bin
+  movement_hist <- hist(
+    times_first_50,
+    breaks = bins,
+    plot = FALSE,
+    include.lowest = TRUE,
+    right = TRUE
+  )
+  movement_counts <- movement_hist$counts
+  total_n <- sum(movement_counts)
+  
+  # Build plot data with continuous x (bin midpoints) for an exact median line
   plot_data <- data.frame(
-    time_bin = factor(bin_labels, levels = bin_labels),
-    count = movement_counts,
-    bin_start = bins[-length(bins)]
+    bin_start = bins[-length(bins)],
+    bin_end   = bins[-1],
+    bin_mid   = bins[-length(bins)] + bin_width / 2,
+    count     = movement_counts
   )
   
+  # Optionally trim trailing zero-only bins (keeps behavior similar to your original)
   if (any(movement_counts > 0)) {
     last_non_zero <- max(which(movement_counts > 0))
-    plot_data <- plot_data[1:last_non_zero, ]
+    plot_data <- plot_data[1:last_non_zero, , drop = FALSE]
   }
   
-  # Create the plot
-  plot <- ggplot(plot_data, aes(x = time_bin, y = count)) +
+  # X limit up to the last kept bin (or 120 if nothing trimmed)
+  x_max <- if (nrow(plot_data) > 0) max(plot_data$bin_end) else 120
+  
+  ggplot(plot_data, aes(x = bin_mid, y = count)) +
     geom_col(
-      fill = if (treatment_name == "Low Treatment") "#4A90E2" else "darkgreen",
+      width = bin_width,
+      fill = if (treatment_name == "Low Treatment") "#4A90E2" else "#E94A2B",
       color = "white",
       alpha = 0.8
     ) +
-    scale_x_discrete(
-      drop = FALSE,  # show all bins, even if count is 0
+    scale_x_continuous(
+      breaks = seq(0, x_max, by = 30),
+      limits = c(0, x_max),
       expand = expansion(mult = 0.02)
     ) +
+    # Force last vertical tick to be 250
     scale_y_continuous(
-      breaks = scales::pretty_breaks(),
-      expand = expansion(mult = 0.02)
+      breaks = seq(0, 250, by = 50),
+      limits = c(0, 250),
+      expand = c(0, 0)
     ) +
     labs(
-      title = paste("First Attempts to Value 50 -", treatment_name),
-      subtitle = "Distribution of first dragging attempts to value 50 in 10-second bins",
-      x = "Time Bins (seconds)",
-      y = "Number of First Attempts to 50",
-      caption = paste("Total first attempts to 50:", sum(movement_counts))
+      x = "Time (in Seconds)",
+      y = "Number of First Attempts to 50"
     ) +
     theme_classic() +
     theme(
       axis.text.x = element_text(angle = 45, hjust = 1),
       plot.title = element_text(size = 12, face = "bold"),
-      plot.subtitle = element_text(size = 10, color = "gray60")
     )
-  
-  return(plot)
 }
 
 plot_low <- create_first_attempt_plot(data_low, "Low Treatment")
@@ -239,57 +255,83 @@ extract_correction_times_to_50 <- function(data) {
 }
 
 create_correction_plot <- function(data, treatment_name) {
+  # Get raw correction times and drop anything > 120
   correction_times <- extract_correction_times_to_50(data)
+  correction_times <- correction_times[!is.na(correction_times) & correction_times <= 120]
+  
   if (length(correction_times) == 0) {
-    cat(paste("No correction behaviors found in", treatment_name, "\n"))
+    cat(paste("No correction behaviors (<=120s) found in", treatment_name, "\n"))
     return(NULL)
   }
-  max_time <- max(max(correction_times), 120)
-  bins <- seq(0, max_time + 10, by = 10)
+  
+  # Binning: 10-second bins up to 120 (last bin is (110, 120])
+  bin_width <- 10
+  bins <- seq(0, 120, by = bin_width)
   bin_labels <- paste0(bins[-length(bins)], "-", bins[-1])
-  correction_counts <- hist(correction_times, breaks = bins, plot = FALSE)$counts
-  plot_data <- data.frame(
-    time_bin = factor(bin_labels, levels = bin_labels),
-    count = correction_counts,
-    bin_start = bins[-length(bins)]
+  
+  # Histogram counts; include 120 in last bin
+  correction_hist <- hist(
+    correction_times,
+    breaks = bins,
+    plot = FALSE,
+    include.lowest = TRUE,
+    right = TRUE
   )
+  correction_counts <- correction_hist$counts
+  
+  plot_data <- data.frame(
+    bin_start = bins[-length(bins)],
+    bin_end   = bins[-1],
+    bin_mid   = bins[-length(bins)] + bin_width / 2,
+    count     = correction_counts
+  )
+  
+  # Trim trailing zero-only bins for a compact plot
   if (any(correction_counts > 0)) {
     last_non_zero <- max(which(correction_counts > 0))
-    plot_data <- plot_data[1:last_non_zero, ]
+    plot_data <- plot_data[1:last_non_zero, , drop = FALSE]
+    bin_labels <- bin_labels[1:last_non_zero]
+    correction_counts <- correction_counts[1:last_non_zero]
   }
   
-  plot <- ggplot(plot_data, aes(x = time_bin, y = count)) +
+  x_max <- if (nrow(plot_data) > 0) max(plot_data$bin_end) else 120
+  total_n <- sum(correction_counts)
+  
+  plot <- ggplot(plot_data, aes(x = bin_mid, y = count)) +
     geom_col(
-      fill = if (treatment_name == "Low Treatment") "#4A90E2" else "purple",
+      width = bin_width,
+      fill = if (treatment_name == "Low Treatment") "#4A90E2" else "#E94A2B",
       color = "white",
       alpha = 0.8
     ) +
-    scale_x_discrete(
-      drop = FALSE,  # show all bins even if count is 0
+    scale_x_continuous(
+      breaks = seq(0, x_max, by = 30),
+      limits = c(0, x_max),
       expand = expansion(mult = 0.02)
     ) +
+    # Force the last y-axis tick to be 75
     scale_y_continuous(
-      breaks = scales::pretty_breaks(),
-      expand = expansion(mult = 0.02)
+      breaks = seq(0, 75, by = 15),
+      limits = c(0, 75),
+      expand = c(0, 0)
     ) +
     labs(
-      title = paste("Self-Corrections to Value 50 -", treatment_name),
-      subtitle = "Time when sliders were corrected to 50 after first dragging to 40-60 range",
-      x = "Time Bins (seconds)",
-      y = "Number of Corrections to 50",
-      caption = paste("Total corrections to 50:", sum(correction_counts))
+      x = "Time (in Seconds)",
+      y = "Number of Corrections to 50"
     ) +
     theme_classic() +
     theme(
       axis.text.x = element_text(angle = 45, hjust = 1),
-      plot.title = element_text(size = 12, face = "bold"),
-      plot.subtitle = element_text(size = 10, color = "gray60")
+      plot.title = element_text(size = 12, face = "bold")
     )
-  for(i in 1:length(correction_counts)) {
-    if(correction_counts[i] > 0) {
+  
+  # Console summary (per-bin counts)
+  for (i in seq_along(correction_counts)) {
+    if (correction_counts[i] > 0) {
       cat(bin_labels[i], ":", correction_counts[i], "corrections\n")
     }
   }
+  
   return(plot)
 }
 
