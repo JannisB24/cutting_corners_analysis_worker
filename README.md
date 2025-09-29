@@ -1,0 +1,11 @@
+# Cutting Corners | READ ME
+- In R, use main.R for the main analysis
+- All files with underscores represent functions or futher analysis
+- Packages to be installed are on the top of the main.R file
+- After running main.R run these additional files for the secondary findings:
+   - "_honesty.R"
+   - "_additional_cognitive_conflict.R"
+   - "_additional_correlations.R"
+   - "_additional_distance_to_assigned.R"
+   - "_additional_mediator.R"
+   - "_additional_time_of_dragging.R"
